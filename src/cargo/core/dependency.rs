@@ -4,7 +4,8 @@ use serde::Serialize;
 use serde::ser;
 use std::borrow::Cow;
 use std::fmt;
-use std::path::PathBuf;
+use std::fmt::{Display, Formatter};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::trace;
 
@@ -662,5 +663,46 @@ impl ArtifactKind {
             );
         }
         Ok(kinds)
+    }
+}
+
+/// Patch is a dependency override that knows where it has been defined.
+/// See [PatchLocation] for possible locations.
+#[derive(Clone, Debug)]
+pub struct Patch {
+    pub dep: Dependency,
+    pub loc: PatchLocation,
+}
+
+/// Place where a patch has been defined.
+#[derive(Clone, Debug, Copy)]
+pub enum PatchLocation<P: Clone = PathBuf> {
+    /// Defined in a manifest, includes the path to the file.
+    Manifest(Option<P>),
+    /// Defined in a `.cargo/config.toml`, includes the path to the file.
+    Config(Option<P>),
+    /// Passed in on the command line
+    Cli,
+}
+
+impl Display for PatchLocation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            PatchLocation::Manifest(p) => {
+                if let Some(p) = p {
+                    Path::display(p).fmt(f)
+                } else {
+                    f.write_str("manifest file")
+                }
+            }
+            PatchLocation::Config(p) => {
+                if let Some(p) = p {
+                    Path::display(p).fmt(f)
+                } else {
+                    f.write_str("configuration")
+                }
+            }
+            PatchLocation::Cli => f.write_str("cli option"),
+        }
     }
 }
